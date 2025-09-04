@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Análise de Desempenho por Habilidade - Consolidado</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f9;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: auto;
+            background-color: #fff;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .filters {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 30px;
+            padding: 20px;
+            background-color: #ecf0f1;
+            border-radius: 8px;
+            flex-wrap: wrap;
+        }
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
+            min-width: 200px;
+        }
+        .filter-group label {
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #555;
+        }
+        .filter-group select {
+            padding: 10px;
+            border: 1px solid #bdc3c7;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        .summary-cards {
+            display: flex;
+            justify-content: space-around;
+            gap: 20px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        .card {
+            background-color: #ffffff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+            flex-grow: 1;
+        }
+        .card h3 {
+            margin-top: 0;
+            color: #3498db;
+        }
+        .card p {
+            font-size: 2em;
+            font-weight: 700;
+            margin: 10px 0 0 0;
+            color: #2c3e50;
+        }
+        .chart-container {
+            margin-bottom: 30px;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            padding: 12px 15px;
+            border: 1px solid #ddd;
+            text-align: left;
+        }
+        th {
+            background-color: #34495e;
+            color: #ffffff;
+            cursor: pointer;
+        }
+        tbody tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+        tbody tr:hover {
+            background-color: #e8f4fd;
+        }
+        .faixa {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 15px;
+            color: #fff;
+            font-weight: bold;
+            text-align: center;
+            font-size: 0.9em;
+        }
+        .faixa.Alto { background-color: #27ae60; }
+        .faixa.Médio-Alto { background-color: #f1c40f; }
+        .faixa.Médio { background-color: #e67e22; }
+        .faixa.Médio-Baixo { background-color: #d35400; }
+        .faixa.Baixo { background-color: #c0392b; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Análise de Desempenho por Habilidade - Consolidado</h1>
+
+        <div class="filters">
+            <div class="filter-group">
+                <label for="ano-escolar-filter">Ano Escolar:</label>
+                <select id="ano-escolar-filter"></select>
+            </div>
+            <div class="filter-group">
+                <label for="comp-curricular-filter">Componente Curricular:</label>
+                <select id="comp-curricular-filter"></select>
+            </div>
+            <div class="filter-group">
+                <label for="faixa-filter">Faixa de Acerto:</label>
+                <select id="faixa-filter"></select>
+            </div>
+        </div>
+
+        <div class="summary-cards">
+            <div class="card">
+                <h3>Média de Acerto</h3>
+                <p id="avg-acerto">0%</p>
+            </div>
+            <div class="card">
+                <h3>Habilidades Avaliadas</h3>
+                <p id="total-habilidades">0</p>
+            </div>
+        </div>
+
+        <div class="chart-container">
+            <h2>Distribuição de Habilidades por Faixa de Acerto</h2>
+            <canvas id="faixaChart"></canvas>
+        </div>
+        
+        <div class="chart-container">
+            <h2>Percentual de Acerto por Habilidade (Piores Resultados Primeiro)</h2>
+            <canvas id="habilidadeChart"></canvas>
+        </div>
+
+        <div>
+            <h2>Detalhes das Habilidades</h2>
+            <table id="habilidades-table">
+                <thead>
+                    <tr>
+                        <th>Habilidade</th>
+                        <th>Descrição</th>
+                        <th>Acerto (%)</th>
+                        <th>Faixa</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    </tbody>
+            </table>
+        </div>
+    </div>
+
+<script>
+// TODOS OS DADOS dos seus 4 arquivos CSV foram combinados e inseridos aqui.
+const csvData = [
+    {"AVALIAÇÃO":"PARANÁ RECOMPOSIÇÃO - 2ª AVALIAÇÃO 2025","REDE":"ESTADUAL","ANO ESCOLAR":"ENSINO MEDIO - 3ª SERIE","COMPONENTE CURRICULAR":"MT","ENTIDADE":"SEBASTIAO PARANA C E C M EF M PROFIS","HABILIDADE - POSIÇÃO":"H 01 (D020_M)","HABILIDADE - DESCRIÇÃO":"Corresponder figuras tridimensionais às suas planificações.","HABILIDADE - ACERTO %":82,"HABILIDADE - FAIXA":"Alto"},
+    {"AVALIAÇÃO":"PARANÁ RECOMPOSIÇÃO - 2ª AVALIAÇÃO 2025","REDE":"ESTADUAL","ANO ESCOLAR":"ENSINO MEDIO - 3ª SERIE","COMPONENTE CURRICULAR":"MT","ENTIDADE":"SEBASTIAO PARANA C E C M EF M PROFIS","HABILIDADE - POSIÇÃO":"H 02 (D021_M)","HABILIDADE - DESCRIÇÃO":"Utilizar informações apresentadas em tabelas ou gráficos na resolução de problemas.","HABILIDADE - ACERTO %":77,"HABILIDADE - FAIXA":"Médio Alto"},
+    {"AVALIAÇÃO":"PARANÁ RECOMPOSIÇÃO - 2ª AVALIAÇÃO 2025","REDE":"ESTADUAL","ANO ESCOLAR":"ENSINO MEDIO - 3ª SERIE","COMPONENTE CURRICULAR":"MT","ENTIDADE":"SEBASTIAO PARANA C E C M EF M PROFIS","HABILIDADE - POSIÇÃO":"H 03 (D033_M)","HABILIDADE - DESCRIÇÃO":"Utilizar o princípio multiplicativo de contagem na resolução de problema.","HABILIDADE - ACERTO %":44,"HABILIDADE - FAIXA":"Médio Baixo"},
+    {"AVALIAÇÃO":"PARANÁ RECOMPOSIÇÃO - 2ª AVALIAÇÃO 2025","REDE":"ESTADUAL","ANO ESCOLAR":"ENSINO MEDIO - 3ª SERIE","COMPONENTE CURRICULAR":"MT","ENTIDADE":"SEBASTIAO PARANA C E C M EF M PROFIS","HABILIDADE - POSIÇÃO":"H 04 (D035_M)","HABILIDADE - DESCRIÇÃO":"Analisar informações apresentadas em tabelas ou gráficos na resolução de problemas.","HABILIDADE - ACERTO %":56,"HABILIDADE - FAIXA":"Médio"},
+    {"AVALIAÇÃO":"PARANÁ RECOMPOSIÇÃO - 2ª AVALIAÇÃO 2025","REDE":"ESTADUAL","ANO ESCOLAR":"ENSINO MEDIO - 3ª SERIE","COMPONENTE CURRICULAR":"MT","ENTIDADE":"SEBASTIAO PARANA C E C M EF M PROFIS","HABILIDADE - POSIÇÃO":"H 05 (D045_M)","HABILIDADE - DESCRIÇÃO":"Utilizar o valor de uma razão trigonométrica na resolução de problema.","HABILIDADE - ACERTO %":31,"HABILIDADE - FAIXA":"Baixo"},
+    {"AVALIAÇÃO":"PARANÁ RECOMPOSIÇÃO - 2ª AVALIAÇÃO 2025","REDE":"ESTADUAL","ANO ESCOLAR":"ENSINO MEDIO - 3ª SERIE","COMPONente CURRICULAR":"MT","ENTIDADE":"SEBASTIAO PARANA C E C M EF M PROFIS","HABILIDADE - POSIÇÃO":"H 06 (D046_M)","HABILIDADE - DESCRIÇÃO":"Utilizar semelhança de polígonos na resolução de problema.","HABILIDADE - ACERTO %":28,"HABILIDADE - FAIXA":"Baixo"},
+    {"AVALIAÇÃO":"PARANÁ RECOMPOSIÇÃO - 2ª AVALIAÇÃO 2025","REDE":"ESTADUAL","ANO ESCOLAR":"ENSINO MEDIO - 3ª SERIE","COMPONENTE CURRICULAR":"MT","ENTIDADE":"SEBASTIAO PARANA C E C M EF M PROFIS","HABILIDADE - POSIÇÃO":"H 07 (D048_M)","HABILIDADE - DESCRIÇÃO":"Utilizar relações métricas de um triângulo retângulo na resolução de problema.","HABILIDADE - ACERTO %":22,"HABILIDADE - FAIXA":"Baixo"},
+    {"AVALIAÇÃO":"PARANÁ RECOMPOSIÇÃO - 2ª AVALIAÇÃO 2025","REDE":"ESTADUAL","ANO ESCOLAR":"ENSINO MEDIO - 3ª SERIE","COMPONENTE CURRICULAR":"MT","ENTIDADE":"SEBASTIAO PARANA C E C M EF M PROFIS","HABILIDADE - POSIÇÃO":"H 08 (D050_M)","HABILIDADE - DESCRIÇÃO":"Reconhecer a representação de um sistema de equações polinomiais de 1º grau no plano cartesiano.","HABILIDADE - ACERTO %":26,"HABILIDADE - FAIXA":"Baixo"},
+    {"AVALIAÇÃO":"PARANÁ RECOMPOSIÇÃO - 2ª AVALIAÇÃO 2025","REDE":"ESTADUAL","ANO ESCOLAR":"ENSINO MEDIO - 3ª SERIE","COMPONENTE CURRICULAR":"MT","ENTIDADE":"SEBASTIAO PARANA C E C M EF M PROFIS","HABILIDADE - POSIÇÃO":"H 09 (D051_M)","HABILIDADE - DESCRIÇÃO":"Utilizar sistema de equações polinomiais de 1º grau na resolução de problema.","HABILIDADE - ACERTO %":26,"HABILIDADE - FAIXA":"Baixo"},
+    {"AVALIAÇÃO":"PARANÁ RECOMPOSIÇÃO - 2ª AVALIAÇÃO 2025","REDE":"ESTADUAL","ANO ESCOLAR":"ENSINO MEDIO - 3ª SERIE","COMPONENTE CURRICULAR":"MT","ENTIDADE":"SEBASTIAO PARANA C E C M EF M PROFIS","HABILIDADE - POSIÇÃO":"H 10 (D057_M)","HABILIDADE - DESCRIÇÃO":"Utilizar porcentagem na resolução de problema.","HABILIDADE - ACERTO %":28,"HABILIDADE - FAIXA":"Baixo"},
+    {"AVALIAÇÃO":"PARANÁ RECOMPOSIÇÃO - 2ª AVALIAÇÃO 2025","REDE":"ESTADUAL","ANO ESCOLAR":"ENSINO MEDIO - 3ª SERIE","COMPONENTE CURRICULAR":"MT","ENTIDADE":"SEBASTIAO PARANA C E C M EF M PROFIS","HABILIDADE - POSIÇÃO":"H 11 (D060_M)","HABILIDADE - DESCRIÇÃO":"Utilizar volume de sólido na resolução de problema.","HABILIDADE - ACERTO %":23,"HABILIDADE - FAIXA":"Baixo"},
+    {"AVALIAÇÃO":"PARANÁ RECOMPOSIÇÃO - 2ª AVALIAÇÃO 2025","REDE":"ESTADUAL","ANO ESCOLAR":"ENSINO MEDIO - 3ª SERIE","COMPONENTE CURRICULAR":"MT","ENTIDADE":"SEBASTIAO PARANA C E C M EF M PROFIS","HABILIDADE - POSIÇÃO":"H 12 (D061_M)","HABILIDADE - DESCRIÇÃO":"Utilizar o cálculo do valor numérico de expressões algébricas na resolução de problemas.","HABILIDADE - ACERTO %":24,"HABILIDADE - FAIXA":"Baixo"},
+    {"AVALIAÇÃO":"PARANÁ RECOMPOSIÇÃO - 2ª AVALIAÇÃO 2025","REDE":"ESTADUAL","ANO ESCOLAR":"ENSINO MEDIO - 3ª SERIE","COMPONENTE CURRICULAR":"MT","ENTIDADE":"SEBASTIAO PARANA C E C M EF M PROFIS","HABILIDADE - POSIÇÃO":"H 13 (D064_M)","HABILIDADE - DESCRIÇÃO":"Utilizar relações métricas de um triângulo retângulo na resolução de problema.","HABILIDADE - ACERTO %":44,"HABILIDADE - FAIXA":"Médio Baixo"},
+    {"AVALIAÇÃO":"PARANÁ RECOMPOSIÇÃO - 2ª AVALIAÇÃO 2025","REDE":"ESTADUAL","ANO ESCOLAR":"ENSINO MEDIO - 3ª SERIE","COMPONENTE CURRICULAR":"MT","ENTIDADE":"SEBASTIAO PARANA C E C M EF M PROFIS","HABILIDADE - POSIÇÃO":"H 14 (D068_M)","HABILIDADE - DESCRIÇÃO":"Corresponder um sistema de equações polinomiais de 1º grau à uma situação problema descrita textualmente.","HABILIDADE - ACERTO %":33,"HABILIDADE - FAIXA":"Baixo"},
+    {"AVALIAÇÃO":"PARANÁ RECOMPOSIÇÃO - 2ª AVALIAÇÃO 2025","REDE":"ESTADUAL","ANO ESCOLAR":"ENSINO MEDIO - 3ª SERIE","COMPONENTE CURRICULAR":"MT","ENTIDADE":"SEBASTIAO PARANA C E C M EF M PROFIS","HABILIDADE - POSIÇÃO":"H 15 (D071_M)","HABILIDADE - DESCRIÇÃO":"Reconhecer o gráfico de uma função polinomial de 1º grau.","HABILIDADE - ACERTO %":28,"HABILIDADE - FAIXA":"Baixo"},
+    {"AVALIAÇÃO":"PARANÁ RECOMPOSIÇÃO - 2ª AVALIAÇÃO 2025","REDE":"ESTADUAL","ANO ESCOLAR":"ENSINO MEDIO - 3ª SERIE","COMPONENTE CURRICULAR":"MT","ENTIDADE":"SEBASTIAO PARANA C E C M EF M PROFIS","HABILIDADE - POSIÇÃO":"H 16 (D077_M)","HABILIDADE - DESCRIÇÃO":"Utilizar função polinomial de 2º grau na resolução de problemas.","HABILIDADE - ACERTO %":82,"HABILIDADE - FAIXA":"Alto"},
+    {"AVALIAÇÃO":"PARANÁ RECOMPOSIÇÃO - 2ª AVALIAÇÃO 2025","REDE":"ESTADUAL","ANO ESCOLAR":"ENSINO MEDIO - 3ª SERIE","COMPONENTE CURRICULAR":"MT","ENTIDADE":"SEBASTIAO PARANA C E C M EF M PROFIS","HABILIDADE - POSIÇÃO":"H 17 (D078_M)","HABILIDADE - DESCRIÇÃO":"Utilizar propriedades de progressões aritméticas ou geométricas na resolução de problemas.","HABILIDADE - ACERTO %":42,"HABILIDADE - FAIXA":"Médio Baixo"},
+    {"AVALIAÇÃO":"PARANÁ RECOMPOSIÇÃO - 2ª AVALIAÇÃO 2025","REDE":"ESTADUAL","ANO ESCOLAR":"ENSINO MEDIO - 3ª SERIE","COMPONENTE CURRICULAR":"MT","ENTIDADE":"SEBASTIAO PARANA C E C M EF M PROFIS","HABILIDADE - POSIÇÃO":"H 18 (D101_M)","HABILIDADE - DESCRIÇÃO":"Identificar a representação algébrica ou gráfica de uma função exponencial.","HABILIDADE - ACERTO %":11,"HABILIDADE - FAIXA":"Baixo"},
+    {"AVALIAÇÃO":"PARANÁ RECOMPOSIÇÃO - 2ª AVALIAÇÃO 2025","REDE":"ESTADUAL","ANO ESCOLAR":"ENSINO MEDIO - 3ª SERIE","COMPONENTE CURRICULAR":"MT","ENTIDADE":"SEBASTIAO PARANA C E C M EF M PROFIS","HABILIDADE - POSIÇÃO":"H 19 (D105_M)","HABILIDADE - DESCRIÇÃO":"Utilizar equação polinomial de 2º grau na resolução de problema.","HABILIDADE - ACERTO %":16,"HABILIDADE - FAIXA":"Baixo"},
+    {"AVALIAÇÃO":"PARANÁ RECOMPOSIÇÃO - 2ª AVALIAÇÃO 2025","REDE":"ESTADUAL","ANO ESCOLAR":"ENSINO MEDIO - 3ª SERIE","COMPONENTE CURRICULAR":"MT","ENTIDADE":"SEBASTIAO PARANA C E C M EF M PROFIS","HABILIDADE - POSIÇÃO":"H 20 (D117_M)","HABILIDADE - DESCRIÇÃO":"Utilizar inequação produto ou quociente na resolução de problemas.","HABILIDADE - ACERTO %":28,"HABILIDADE - FAIXA":"Baixo"},
+    {"AVALIAÇÃO":"PARANÁ RECOMPOSIÇÃO - 2ª AVALIAÇÃO 2025","REDE":"ESTADUAL","ANO ESCOLAR":"ENSINO MEDIO - 3ª SERIE","COMPONENTE CURRICULAR":"LP","ENTIDADE":"SEBASTIAO PARANA C E C M EF M PROFIS","HABILIDADE - POSIÇÃO":"H 01 (D019_P)","HABILIDADE - DESCRIÇÃO":"Reconhecer formas de tratar uma informação na comparação de textos que tratam do mesmo tema.","HABILIDADE - ACERTO %":35,"HABILIDADE - FAIXA":"Baixo"},
+    {"AVALIAÇÃO":"PARANÁ RECOMPOSIÇÃO - 2ª AVALIAÇÃO 2025","REDE":"ESTADUAL","ANO ESCOLAR":"ENSINO MEDIO - 3ª SERIE","COMPONENTE CURRICULAR":"LP","ENTIDADE":"SEBASTIAO PARANA C E C M EF M PROFIS","HABILIDADE - POSIÇÃO":"H 02 (D021_P)","HABILIDADE - DESCRIÇÃO":"Localizar informação explícita.","HABILIDADE - ACERTO %":84,"HABILIDADE - FAIXA":"Alto"},
+    {"AVALIAÇÃO":"PARANÁ RECOMPOSIÇÃO - 2ª AVALIAÇÃO 2025","REDE":"ESTADUAL","ANO ESCOLAR":"ENSINO MEDIO - 3ª SERIE","COMPONENTE CURRICULAR":"LP","ENTIDADE":"SEBASTIAO PARANA C E C M EF M PROFIS","HABILIDADE - POSIÇÃO":"H 03 (D023_P)","HABILIDADE - DESCRIÇÃO":"Inferir informações em textos.","HABILIDADE - ACERTO %":76,"HABILIDADE - FAIXA":"Médio Alto"},
+    {"AVALIAÇÃO":"PARANÁ RECOMPOSIÇÃO - 2ª AVALIAÇÃO 2025","REDE":"ESTADUAL","ANO ESCOLAR":"ENSINO MEDIO - 3ª SERIE","COMPONENTE CURRICULAR":"LP","ENTIDADE":"SEBASTIAO PARANA C E C M EF M PROFIS","HABILIDADE - POSIÇÃO":"H 04 (D024_P)","HABILIDADE - DESCRIÇÃO":"Reconhecer efeito de humor e ironia.","HABILIDADE - ACERTO %":71,"HABILIDADE - FAIXA":"Médio Alto"},
+    {"AVALIAÇÃO":"PARANÁ RECOMPOSIÇÃO - 2ª AVALIAÇÃO 2025","REDE":"ESTADUAL","ANO ESCOLAR":"ENSINO MEDIO - 3ª SERIE","COMPONENTE CURRICULAR":"LP","ENTIDADE":"SEBASTIAO PARANA C E C M EF M PROFIS","HABILIDADE - POSIÇÃO":"H 05 (D027_P)","HABILIDADE - DESCRIÇÃO":"Identificar a tese de um texto.","HABILIDADE - ACERTO %":49,"HABILIDADE - FAIXA":"Médio Baixo"},
+    {"AVALIAÇÃO":"PARANÁ RECOMPOSIÇÃO - 2ª AVALIAÇÃO 2025","REDE":"ESTADUAL","ANO ESCOLAR":"ENSINO MEDIO - 3ª SERIE","COMPONENTE CURRICULAR":"LP","ENTIDADE":"SEBASTIAO PARANA C E C M EF M PROFIS","HABILIDADE - POSIÇÃO":"H 06 (D030_P)","HABILIDADE - DESCRIÇÃO":"Identificar o tema de um texto.","HABILIDADE - ACERTO %":88,"HABILIDADE - FAIXA":"Alto"},
+    {"AVALIAÇÃO":"PARANÁ RECOMPOSIÇÃO - 2ª AVALIAÇÃO 2025","REDE":"ESTADUAL","ANO ESCOLAR":"ENSINO MEDIO - 3ª SERIE","COMPONENTE CURRICULAR":"LP","ENTIDADE":"SEBASTIAO PARANA C E C M EF M PROFIS","HABILIDADE - POSIÇÃO":"H 07 (D031_P)","HABILIDADE - DESCRIÇÃO":"Distinguir um fato da opinião relativa a esse fato.","HABILIDADE - ACERTO %":70,"HABILIDADE - FAIXA":"Médio Alto"},
+    {"AVALIAÇÃO":"PARANÁ RECOMPOSIÇÃO - 2ª AVALIAÇÃO 2025","REDE":"ESTADUAL","ANO ESCOLAR":"ENSINO MEDIO - 3ª SERIE","COMPONENTE CURRICULAR":"LP","ENTIDADE":"SEBASTIAO PARANA C E C M EF M PROFIS","HABILIDADE - POSIÇÃO":"H 08 (D035_P)","HABILIDADE - DESCRIÇÃO":"Estabelecer relações entre partes de um texto, identificando os recursos coesivos que contribuem para a sua continuidade.","HABILIDADE - ACERTO %":74,"HABILIDADE - FAIXA":"Médio Alto"},
+    {"AVALIAÇÃO":"PARANÁ RECOMPOSIÇÃO - 2ª AVALIAÇÃO 2025","REDE":"ESTADUAL","ANO ESCOLAR":"ENSINO MEDIO - 3ª SERIE","COMPONENTE CURRICULAR":"LP","ENTIDADE":"SEBASTIAO PARANA C E C M EF M PROFIS","HABILIDADE - POSIÇÃO":"H 09 (D038_P)","HABILIDADE - DESCRIÇÃO":"Distinguir um fato da opinião.","HABILIDADE - ACERTO %":66,"HABILIDADE - FAIXA":"Médio Alto"},
+    {"AVALIAÇÃO":"PARANÁ RECOMPOSIÇÃO - 2ª AVALIAÇÃO 2025","REDE":"ESTADUAL","ANO ESCOLAR":"ENSINO MEDIO - 3ª SERIE","COMPONENTE CURRICULAR":"LP","ENTIDADE":"SEBASTIAO PARANA C E C M EF M PROFIS","HABILIDADE - POSIÇÃO":"H 10 (D039_P)","HABILIDADE - DESCRIÇÃO":"Reconhecer o sentido das relações lógico-discursivas em um texto.","HABILIDADE - ACERTO %":75,"HABILIDADE - FAIXA":"Médio Alto"},
+    {"AVALIAÇÃO":"PARANÁ RECOMPOSIÇÃO - 2ª AVALIAÇÃO 2025","REDE":"ESTADUAL","ANO ESCOLAR":"ENSINO MEDIO - 3ª SERIE","COMPONENTE CURRICULAR":"LP","ENTIDADE":"SEBASTIAO PARANA C E C M EF M PROFIS","HABILIDADE - POSIÇÃO":"H 11 (D053_P)","HABILIDADE - DESCRIÇÃO":"Reconhecer o efeito de sentido decorrente da escolha de uma determinada palavra ou expressão.","HABILIDADE - ACERTO %":81,"HABILIDADE - FAIXA":"Alto"},
+    {"AVALIAÇÃO":"PARANÁ RECOMPOSIÇÃO - 2ª AVALIAÇÃO 2025","REDE":"ESTADUAL","ANO ESCOLAR":"ENSINO MEDIO - 3ª SERIE","COMPONENTE CURRICULAR":"LP","ENTIDADE":"SEBASTIAO PARANA C E C M EF M PROFIS","HABILIDADE - POSIÇÃO":"H 12 (D055_P)","HABILIDADE - DESCRIÇÃO":"Estabelecer relação entre a tese e os argumentos oferecidos para sustentá-la.","HABILIDADE - ACERTO %":54,"HABILIDADE - FAIXA":"Médio Baixo"},
+    {"AVALIAÇÃO":"PARANÁ RECOMPOSIÇÃO - 2ª AVALIAÇÃO 2025","REDE":"ESTADUAL","ANO ESCOLAR":"ENSINO MEDIO - 3ª SERIE","COMPONENTE CURRICULAR":"LP","ENTIDADE":"SEBASTIAO PARANA C E C M EF M PROFIS","HABILIDADE - POSIÇÃO":"H 13 (D060_P)","HABILIDADE - DESCRIÇÃO":"Identificar o propósito comunicativo em diferentes gêneros.","HABILIDADE - ACERTO %":73,"HABILIDADE - FAIXA":"Médio Alto"},
+    {"AVALIAÇÃO":"PARANÁ RECOMPOSIÇÃO - 2ª AVALIAÇÃO 2025","REDE":"ESTADUAL","ANO ESCOLAR":"ENSINO FUNDAMENTAL DE 9 ANOS - 9º ANO","COMPONENTE CURRICULAR":"MT","ENTIDADE":"SEBASTIAO PARANA C E C M EF M PROFIS","HABILIDADE - POSIÇÃO":"H 01 (D020_M)","HABILIDADE - DESCRIÇÃO":"Corresponder figuras tridimensionais às suas planificações.","HABILIDADE - ACERTO %":57,"HABILIDADE - FAIXA":"Médio Baixo"},
+    {"AVALIAÇÃO":"PARANÁ RECOMPOSIÇÃO - 2ª AVALIAÇÃO 2025","REDE":"ESTADUAL","ANO ESCOLAR":"ENSINO FUNDAMENTAL DE 9 ANOS - 9º ANO","COMPONENTE CURRICULAR":"MT","ENTIDADE":"SEBASTIAO PARANA C E C M EF M PROFIS","HABILIDADE - POSIÇÃO":"H 02 (D021_M)","HABILIDADE - DESCRIÇÃO":"Utilizar informações apresentadas em tabelas ou gráficos na resolução de problemas.","HABILIDADE - ACERTO %":77,"HABILIDADE - FAIXA":"Médio Alto"},
+    {"AVALIAÇÃO":"PARANÁ RECOMPOSIÇÃO - 2ª AVALIAÇÃO 2025","REDE":"ESTADUAL","ANO ESCOLAR":"ENSINO FUNDAMENTAL DE 9 ANOS - 9º ANO","COMPONENTE CURRICULAR":"MT","ENTIDADE":"SEBASTIAO PARANA C E C M EF M PROFIS","HABILIDADE - POSIÇÃO":"H 03 (D025_M)","HABILIDADE - DESCRIÇÃO":"Utilizar área de figuras bidimensionais na resolução de problema.","HABILIDADE - ACERTO %":43,"HABILIDADE - FAIXA":"Médio Baixo"},
+    {"AVALIAÇÃO":"PARANÁ RECOMPOSIÇÃO - 2ª AVALIAÇÃO 2025","REDE":"ESTADUAL","ANO ESCOLAR":"ENSINO FUNDAMENTAL DE 9 ANOS - 9º ANO","COMPONENTE CURRICULAR":"MT","ENTIDADE":"SEBASTIAO PARANA C E C M EF M PROFIS","HABILIDADE - POSIÇÃO":"H 04 (D035_M)","HABILIDADE - DESCRIÇÃO":"Analisar informações apresentadas em tabelas ou gráficos na resolução de problemas.","HABILIDADE - ACERTO %":50,"HABILIDADE - FAIXA":"Médio Baixo"},
+    {"AVALIAÇÃO":"PARANÁ RECOMPOSIÇÃO - 2ª AVALIAÇÃO 2025","REDE":"ESTADUAL","ANO ESCOLAR":"ENSINO FUNDAMENTAL DE 9 ANOS - 9º ANO","COMPONENTE CURRICULAR":"MT","ENTIDADE":"SEBASTIAO PARANA C E C M EF M PROFIS","HABILIDADE - POSIÇÃO":"H 05 (D040_M)","HABILIDADE - DESCRIÇÃO":"Utilizar o cálculo de média aritmética na resolução de problema.","HABILIDADE - ACERTO %":74,"HABILIDADE - FAIXA":"Médio Alto"},
+    {"AVALIAÇÃO":"PARANÁ RECOMPOSIÇÃO - 2ª AVALIAÇÃO 2025","REDE":"ESTADUAL","ANO ESCOLAR":"ENSINO FUNDAMENTAL DE 9 ANOS - 9º ANO","COMPONENTE CURRICULAR":"MT","ENTIDADE":"SEBASTIAO PARANA C E C M EF M PROFIS","HABILIDADE - POSIÇÃO":"H 06 (D045_M)","HABILIDADE - DESCRIÇÃO":"Utilizar o valor de uma razão trigonométrica na resolução de problema.","HABILIDADE - ACERTO %":55,"HABILIDADE - FAIXA":"Médio"},
+    {"AVALIAÇÃO":"PARANÁ RECOMPOSIÇÃO - 2ª AVALIAÇÃO 2025","REDE":"ESTADUAL","ANO ESCOLAR":"ENSINO FUNDAMENTAL DE 9 ANOS - 9º ANO","COMPONENTE CURRICULAR":"MT","ENTIDADE":"SEBASTIAO PARANA C E C M EF M PROFIS","HABILIDADE - POSIÇÃO":"H 07 (D046_M)","HABILIDADE - DESCRIÇÃO":"Utilizar semelhança de polígonos na resolução de problema.","HABILIDADE - ACERTO %":33,"HABILIDADE - FAIXA":"Baixo"},
+    {"AVALIAÇÃO":"PARANÁ RECOMPOSIÇÃO - 2ª AVALIAÇÃO 2025","REDE":"ESTADUAL","ANO ESCOLAR":"ENSINO FUNDAMENTAL DE 9 ANOS - 9º ANO","COMPONENTE CURRICULAR":"MT","ENTIDADE":"SEBASTIAO PARANA C E C M EF M PROFIS","HABILIDADE - POSIÇÃO":"H 08 (D048_M)","HABILIDADE - DESCRIÇÃO":"Utilizar relações métricas de um triângulo retângulo na resolução de problema.","HABILIDADE - ACERTO %":37,"HABILIDADE - FAIXA":"Baixo"},
+    {"AVALIAÇÃO":"PARANÁ RECOMPOSIÇÃO - 2ª AVALIAÇÃO 2025","REDE":"ESTADUAL","ANO ESCOLAR":"ENSINO FUNDAMENTAL DE 9 ANOS - 9º ANO","COMPONENTE CURRICULAR":"MT","ENTIDADE":"SEBASTIAO PARANA C E C M EF M PROFIS","HABILIDADE - POSIÇÃO":"H 09 (D051_M)","HABILIDADE - DESCRIÇÃO":"Utilizar sistema de equações polinomiais de 1º grau na resolução de problema.","HABILIDADE - ACERTO %":38,"HABILIDADE - FAIXA":"Baixo"},
+    {"AVALIAÇÃO":"PARANÁ RECOMPOSIÇÃO - 2ª AVALIAÇÃO 2025","REDE":"ESTADUAL","ANO ESCOLAR":"ENSINO FUNDAMENTAL DE 9 ANOS - 9º ANO","COMPONENTE CURRICULAR":"MT","ENTIDADE":"SEBASTIAO PARANA C E C M EF M PROFIS","HABILIDADE - POSIÇÃO":"H 10 (D054_M)","HABILIDADE - DESCRIÇÃO":"Resolver equação polinomial de 2º grau.","HABILIDADE - ACERTO %":50,"HABILIDADE - FAIXA":"Médio Baixo"},
+    {"AVALIAÇÃO":"PARANÁ RECOMPOSIÇÃO - 2ª AVALIAÇÃO 2025","REDE":"ESTADUAL","ANO ESCOLAR":"ENSINO FUNDAMENTAL DE 9 ANOS - 9º ANO","COMPONENTE CURRICULAR":"MT","ENTIDADE":"SEBASTIAO PARANA C E C M EF M PROFIS","HABILIDADE - POSIÇÃO":"H 11 (D057_M)","HABILIDADE - DESCRIÇÃO":"Utilizar porcentagem na resolução de problema.","HABILIDADE - ACERTO %":62,"HABILIDADE - FAIXA":"Médio Alto"},
+    {"AVALIAÇÃO":"PARANÁ RECOMPOSIÇÃO - 2ª AVALIAÇÃO 2025","REDE":"ESTADUAL","ANO ESCOLAR":"ENSINO FUNDAMENTAL DE 9 ANOS - 9º ANO","COMPONENTE CURRICULAR":"MT","ENTIDADE":"SEBASTIAO PARANA C E C M EF M PROFIS","HABILIDADE - POSIÇÃO":"H 12 (D060_M)","HABILIDADE - DESCRIÇÃO":"Utilizar volume de sólido na resolução de problema.","HABILIDADE - ACERTO %":20,"HABILIDADE - FAIXA":"Baixo"},
+    {"AVALIAÇÃO":"PARANÁ RECOMPOSIÇÃO - 2ª AVALIAÇÃO 2025","REDE":"ESTADUAL","ANO ESCOLAR":"ENSINO FUNDAMENTAL DE 9 ANOS - 9º ANO","COMPONENTE CURRICULAR":"MT","ENTIDADE":"SEBASTIAO PARANA C E C M EF M PROFIS","HABILIDADE - POSIÇÃO":"H 13 (D061_M)","HABILIDADE - DESCRIÇÃO":"Utilizar o cálculo do valor numérico de expressões algébricas na resolução de problemas.","HABILIDADE - ACERTO %":40,"HABILIDADE - FAIXA":"Médio Baixo"},
+    {"AVALIAÇÃO":"PARANÁ RECOMPOSIÇÃO - 2ª AVALIAÇÃO 2025","REDE":"ESTADUAL","ANO ESCOLAR":"ENSINO FUNDAMENTAL DE 9 ANOS - 9º ANO","COMPONENTE CURRICULAR":"MT","ENTIDADE":"SEBASTIAO PARANA C E C M EF M PROFIS","HABILIDADE - POSIÇÃO":"H 14 (D062_M)","HABILIDADE - DESCRIÇÃO":"Utilizar o Teorema de Pitágoras na resolução de problema.","HABILIDADE - ACERTO %":28,"HABILIDADE - FAIXA":"Baixo"},
+    {"AVALIAÇÃO":"PARANÁ RECOMPOSIÇÃO - 2ª AVALIAÇÃO 2025","REDE":"ESTADUAL","ANO ESCOLAR":"ENSINO FUNDAMENTAL DE 9 ANOS - 9º ANO","COMPONENTE CURRICULAR":"MT","ENTIDADE":"SEBASTIAO PARANA C E C M EF M PROFIS","HABILIDADE - POSIÇÃO":"H 15 (D063_M)","HABILIDADE - DESCRIÇÃO":"Utilizar o cálculo do valor numérico de expressões algébricas na resolução de problemas.","HABILIDADE - ACERTO %":82,"HABILIDADE - FAIXA":"Alto"},
+    {"AVALIAÇÃO":"PARANÁ RECOMPOSIÇÃO - 2ª AVALIAÇÃO 2025","REDE":"ESTADUAL","ANO ESCOLAR":"ENSINO FUNDAMENTAL DE 9 ANOS - 9º ANO","COMPONENTE CURRICULAR":"MT","ENTIDADE":"SEBASTIAO PARANA C E C M EF M PROFIS","HABILIDADE - POSIÇÃO":"H 16 (D063_M)","HABILIDADE - DESCRIÇÃO":"Utilizar o cálculo do valor numérico de expressões algébricas na resolução de problemas.","HABILIDADE - ACERTO %":82,"HABILIDADE - FAIXA":"Alto"},
+    {"AVALIAÇÃO":"PARANÁ RECOMPOSIÇÃO - 2ª AVALIAÇÃO 2025","REDE":"ESTADUAL","ANO ESCOLAR":"ENSINO FUNDAMENTAL DE 9 ANOS - 9º ANO","COMPONENTE CURRICULAR":"MT","ENTIDADE":"SEBASTIAO PARANA C E C M EF M PROFIS","HABILIDADE - POSIÇÃO":"H 17 (D064_M)","HABILIDADE - DESCRIÇÃO":"Utilizar relações métricas de um triângulo retângulo na resolução de problema.","HABILIDADE - ACERTO %":35,"HABILIDADE - FAIXA":"Baixo"},
+    {"AVALIAÇÃO":"PARANÁ RECOMPOSIÇÃO - 2ª AVALIAÇÃO 2025","REDE":"ESTADUAL","ANO ESCOLAR":"ENSINO FUNDAMENTAL DE 9 ANOS - 9º ANO","COMPONENTE CURRICULAR":"MT","ENTIDADE":"SEBASTIAO PARANA C E C M EF M PROFIS","HABILIDADE - POSIÇÃO":"H 18 (D068_M)","HABILIDADE - DESCRIÇÃO":"Corresponder um sistema de equações polinomiais de 1º grau à uma situação problema descrita textualmente.","HABILIDADE - ACERTO %":66,"HABILIDADE - FAIXA":"Médio Alto"},
+    {"AVALIAÇÃO":"PARANÁ RECOMPOSIÇÃO - 2ª AVALIAÇÃO 2025","REDE":"ESTADUAL","ANO ESCOLAR":"ENSINO FUNDAMENTAL DE 9 ANOS - 9º ANO","COMPONENTE CURRICULAR":"MT","ENTIDADE":"SEBASTIAO PARANA C E C M EF M PROFIS","HABILIDADE - POSIÇÃO":"H 19 (D105_M)","HABILIDADE - DESCRIÇÃO":"Utilizar equação polinomial de 2º grau na resolução de problema.","HABILIDADE - ACERTO %":50,"HABILIDADE - FAIXA":"Médio Baixo"},
+    {"AVALIAÇÃO":"PARANÁ RECOMPOSIÇÃO - 2ª AVALIAÇÃO 2025","REDE":"ESTADUAL","ANO ESCOLAR":"ENSINO FUNDAMENTAL DE 9 ANOS - 9º ANO","COMPONENTE CURRICULAR":"MT","ENTIDADE":"SEBASTIAO PARANA C E C M EF M PROFIS","HABILIDADE - POSIÇÃO":"H 20 (D117_M)","HABILIDADE - DESCRIÇÃO":"Utilizar inequação produto ou quociente na resolução de problemas.","HABILIDADE - ACERTO %":44,"HABILIDADE - FAIXA":"Médio Baixo"},
+    {"AVALIAÇÃO":"PARANÁ RECOMPOSIÇÃO - 2ª AVALIAÇÃO 2025","REDE":"ESTADUAL","ANO ESCOLAR":"ENSINO FUNDAMENTAL DE 9 ANOS - 9º ANO","COMPONENTE CURRICULAR":"LP","ENTIDADE":"SEBASTIAO PARANA C E C M EF M PROFIS","HABILIDADE - POSIÇÃO":"H 01 (D016_P)","HABILIDADE - DESCRIÇÃO":"Identificar a finalidade de textos de diferentes gêneros.","HABILIDADE - ACERTO %":93,"HABILIDADE - FAIXA":"Alto"},
+    {"AVALIAÇÃO":"PARANÁ RECOMPOSIÇÃO - 2ª AVALIAÇÃO 2025","REDE":"ESTADUAL","ANO ESCOLAR":"ENSINO FUNDAMENTAL DE 9 ANOS - 9º ANO","COMPONENTE CURRICULAR":"LP","ENTIDADE":"SEBASTIAO PARANA C E C M EF M PROFIS","HABILIDADE - POSIÇÃO":"H 02 (D021_P)","HABILIDADE - DESCRIÇÃO":"Localizar informação explícita.","HABILIDADE - ACERTO %":92,"HABILIDADE - FAIXA":"Alto"},
+    {"AVALIAÇÃO":"PARANÁ RECOMPOSIÇÃO - 2ª AVALIAÇÃO 2025","REDE":"ESTADUAL","ANO ESCOLAR":"ENSINO FUNDAMENTAL DE 9 ANOS - 9º ANO","COMPONENTE CURRICULAR":"LP","ENTIDADE":"SEBASTIAO PARANA C E C M EF M PROFIS","HABILIDADE - POSIÇÃO":"H 03 (D023_P)","HABILIDADE - DESCRIÇÃO":"Inferir informações em textos.","HABILidade - ACERTO %":83,"HABILIDADE - FAIXA":"Alto"},
+    {"AVALIAÇÃO":"PARANÁ RECOMPOSIÇÃO - 2ª AVALIAÇÃO 2025","REDE":"ESTADUAL","ANO ESCOLAR":"ENSINO FUNDAMENTAL DE 9 ANOS - 9º ANO","COMPONENTE CURRICULAR":"LP","ENTIDADE":"SEBASTIAO PARANA C E C M EF M PROFIS","HABILIDADE - POSIÇÃO":"H 04 (D024_P)","HABILIDADE - DESCRIÇÃO":"Inferir o sentido de uma palavra ou expressão.","HABILIDADE - ACERTO %":88,"HABILIDADE - FAIXA":"Alto"},
+    {"AVALIAÇÃO":"PARANÁ RECOMPOSIÇÃO - 2ª AVALIAÇÃO 2025","REDE":"ESTADUAL","ANO ESCOLAR":"ENSINO FUNDAMENTAL DE 9 ANOS - 9º ANO","COMPONENTE CURRICULAR":"LP","ENTIDADE":"SEBASTIAO PARANA C E C M EF M PROFIS","HABILIDADE - POSIÇÃO":"H 05 (D027_P)","HABILIDADE - DESCRIÇÃO":"Identificar a tese de um texto.","HABILIDADE - ACERTO %":49,"HABILIDADE - FAIXA":"Baixo"},
+    {"AVALIAÇÃO":"PARANÁ RECOMPOSIÇÃO - 2ª AVALIAÇÃO 2025","REDE":"ESTADUAL","ANO ESCOLAR":"ENSINO FUNDAMENTAL DE 9 ANOS - 9º ANO","COMPONENTE CURRICULAR":"LP","ENTIDADE":"SEBASTIAO PARANA C E C M EF M PROFIS","HABILIDADE - POSIÇÃO":"H 06 (D030_P)","HABILIDADE - DESCRIÇÃO":"Identificar o tema de um texto.","HABILIDADE - ACERTO %":78,"HABILIDADE - FAIXA":"Médio Alto"},
+    {"AVALIAÇÃO":"PARANÁ RECOMPOSIÇÃO - 2ª AVALIAÇÃO 2025","REDE":"ESTADUAL","ANO ESCOLAR":"ENSINO FUNDAMENTAL DE 9 ANOS - 9º ANO","COMPONENTE CURRICULAR":"LP","ENTIDADE":"SEBASTIAO PARANA C E C M EF M PROFIS","HABILIDADE - POSIÇÃO":"H 07 (D031_P)","HABILIDADE - DESCRIÇÃO":"Distinguir um fato da opinião relativa a esse fato.","HABILIDADE - ACERTO %":62,"HABILIDADE - FAIXA":"Médio Alto"},
+    {"AVALIAÇÃO":"PARANÁ RECOMPOSIÇÃO - 2ª AVALIAÇÃO 2025","REDE":"ESTADUAL","ANO ESCOLAR":"ENSINO FUNDAMENTAL DE 9 ANOS - 9º ANO","COMPONENTE CURRICULAR":"LP","ENTIDADE":"SEBASTIAO PARANA C E C M EF M PROFIS","HABILIDADE - POSIÇÃO":"H 08 (D032_P)","HABILIDADE - DESCRIÇÃO":"Identificar o conflito gerador do enredo e os elementos que compõem a narrativa.","HABILIDADE - ACERTO %":37,"HABILIDADE - FAIXA":"Baixo"},
+    {"AVALIAÇÃO":"PARANÁ RECOMPOSIÇÃO - 2ª AVALIAÇÃO 2025","REDE":"ESTADUAL","ANO ESCOLAR":"ENSINO FUNDAMENTAL DE 9 ANOS - 9º ANO","COMPONENTE CURRICULAR":"LP","ENTIDADE":"SEBASTIAO PARANA C E C M EF M PROFIS","HABILIDADE - POSIÇÃO":"H 09 (D035_P)","HABILIDADE - DESCRIÇÃO":"Estabelecer relações entre partes de um texto, identificando os recursos coesivos que contribuem para a sua continuidade.","HABILIDADE - ACERTO %":88,"HABILIDADE - FAIXA":"Alto"},
+    {"AVALIAÇÃO":"PARANÁ RECOMPOSIÇÃO - 2ª AVALIAÇÃO 2025","REDE":"ESTADUAL","ANO ESCOLAR":"ENSINO FUNDAMENTAL DE 9 ANOS - 9º ANO","COMPONENTE CURRICULAR":"LP","ENTIDADE":"SEBASTIAO PARANA C E C M EF M PROFIS","HABILIDADE - POSIÇÃO":"H 10 (D038_P)","HABILIDADE - DESCRIÇÃO":"Distinguir um fato da opinião.","HABILIDADE - ACERTO %":81,"HABILIDADE - FAIXA":"Alto"},
+    {"AVALIAÇÃO":"PARANÁ RECOMPOSIÇÃO - 2ª AVALIAÇÃO 2025","REDE":"ESTADUAL","ANO ESCOLAR":"ENSINO FUNDAMENTAL DE 9 ANOS - 9º ANO","COMPONENTE CURRICULAR":"LP","ENTIDADE":"SEBASTIAO PARANA C E C M EF M PROFIS","HABILIDADE - POSIÇÃO":"H 11 (D039_P)","HABILIDADE - DESCRIÇÃO":"Reconhecer o sentido das relações lógico-discursivas em um texto.","HABILIDADE - ACERTO %":62,"HABILIDADE - FAIXA":"Médio Alto"},
+    {"AVALIAÇÃO":"PARANÁ RECOMPOSIÇÃO - 2ª AVALIAÇÃO 2025","REDE":"ESTADUAL","ANO ESCOLAR":"ENSINO FUNDAMENTAL DE 9 ANOS - 9º ANO","COMPONENTE CURRICULAR":"LP","ENTIDADE":"SEBASTIAO PARANA C E C M EF M PROFIS","HABILIDADE - POSIÇÃO":"H 12 (D053_P)","HABILIDADE - DESCRIÇÃO":"Reconhecer o efeito de sentido decorrente da escolha de uma determinada palavra ou expressão.","HABILIDADE - ACERTO %":92,"HABILIDADE - FAIXA":"Alto"},
+    {"AVALIAÇÃO":"PARANÁ RECOMPOSIÇÃO - 2ª AVALIAÇÃO 2025","REDE":"ESTADUAL","ANO ESCOLAR":"ENSINO FUNDAMENTAL DE 9 ANOS - 9º ANO","COMPONENTE CURRICULAR":"LP","ENTIDADE":"SEBASTIAO PARANA C E C M EF M PROFIS","HABILIDADE - POSIÇÃO":"H 13 (D055_P)","HABILIDADE - DESCRIÇÃO":"Estabelecer relação entre a tese e os argumentos oferecidos para sustentá-la.","HABILIDADE - ACERTO %":41,"HABILIDADE - FAIXA":"Baixo"}
+];
+
+
+// --- INÍCIO DO CÓDIGO JAVASCRIPT CORRIGIDO ---
+
+// Mapeamento de cores para as faixas
+const faixaColors = {
+    'Alto': 'rgba(39, 174, 96, 0.7)',
+    'Médio Alto': 'rgba(241, 196, 15, 0.7)',
+    'Médio': 'rgba(230, 126, 34, 0.7)',
+    'Médio Baixo': 'rgba(211, 84, 0, 0.7)',
+    'Baixo': 'rgba(192, 57, 43, 0.7)',
+};
+const faixaBorders = {
+    'Alto': 'rgb(39, 174, 96)',
+    'Médio Alto': 'rgb(241, 196, 15)',
+    'Médio': 'rgb(230, 126, 34)',
+    'Médio Baixo': 'rgb(211, 84, 0)',
+    'Baixo': 'rgb(192, 57, 43)',
+};
+
+// Elementos do DOM
+const anoEscolarFilter = document.getElementById('ano-escolar-filter');
+const compCurricularFilter = document.getElementById('comp-curricular-filter');
+const faixaFilter = document.getElementById('faixa-filter');
+const tableBody = document.querySelector('#habilidades-table tbody');
+const avgAcertoEl = document.getElementById('avg-acerto');
+const totalHabilidadesEl = document.getElementById('total-habilidades');
+
+let faixaChart, habilidadeChart;
+
+function populateFilters() {
+    const anos = [...new Set(csvData.map(item => item['ANO ESCOLAR']))];
+    const componentes = [...new Set(csvData.map(item => item['COMPONENTE CURRICULAR']))];
+    const faixas = [...new Set(csvData.map(item => item['HABILIDADE - FAIXA']))];
+
+    // Adiciona a opção "Todos" e depois popula o resto
+    anoEscolarFilter.innerHTML = '<option value="todos">Todos</option>';
+    compCurricularFilter.innerHTML = '<option value="todos">Todos</option>';
+    faixaFilter.innerHTML = '<option value="todos">Todas</option>';
+
+    anos.forEach(ano => {
+        const option = document.createElement('option');
+        option.value = ano;
+        option.textContent = ano;
+        anoEscolarFilter.appendChild(option);
+    });
+
+    componentes.forEach(comp => {
+        const option = document.createElement('option');
+        option.value = comp;
+        option.textContent = comp;
+        compCurricularFilter.appendChild(option);
+    });
+
+    faixas.sort().forEach(faixa => { // .sort() para ordenar as faixas
+        const option = document.createElement('option');
+        option.value = faixa;
+        option.textContent = faixa;
+        faixaFilter.appendChild(option);
+    });
+}
+
+function updateDashboard(data) {
+    // Cards de Resumo
+    const totalAcertos = data.reduce((sum, item) => sum + item['HABILIDADE - ACERTO %'], 0);
+    const avgAcerto = data.length > 0 ? (totalAcertos / data.length).toFixed(1) : 0;
+    
+    avgAcertoEl.textContent = `${avgAcerto}%`;
+    totalHabilidadesEl.textContent = data.length;
+
+    // Gráfico de Pizza (Faixas)
+    const faixasCount = data.reduce((acc, item) => {
+        const faixa = item['HABILIDADE - FAIXA'];
+        acc[faixa] = (acc[faixa] || 0) + 1;
+        return acc;
+    }, {});
+
+    const faixaLabels = Object.keys(faixasCount);
+    const faixaData = Object.values(faixasCount);
+    
+    if (faixaChart) {
+        faixaChart.destroy();
+    }
+    faixaChart = new Chart(document.getElementById('faixaChart'), {
+        type: 'pie',
+        data: {
+            labels: faixaLabels,
+            datasets: [{
+                label: 'Nº de Habilidades',
+                data: faixaData,
+                backgroundColor: faixaLabels.map(label => faixaColors[label] || '#bdc3c7'),
+                borderColor: '#fff',
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { position: 'top' }
+            }
+        }
+    });
+    
+    // Gráfico de Barras (Habilidades)
+    const sortedData = [...data].sort((a, b) => a['HABILIDADE - ACERTO %'] - b['HABILIDADE - ACERTO %']);
+    const habLabels = sortedData.map(item => item['HABILIDADE - POSIÇÃO']);
+    const habData = sortedData.map(item => item['HABILIDADE - ACERTO %']);
+    const habColors = sortedData.map(item => faixaColors[item['HABILIDADE - FAIXA']] || '#bdc3c7');
+    const habBorderColors = sortedData.map(item => faixaBorders[item['HABILIDADE - FAIXA']] || '#bdc3c7');
+
+    if (habilidadeChart) {
+        habilidadeChart.destroy();
+    }
+    habilidadeChart = new Chart(document.getElementById('habilidadeChart'), {
+        type: 'bar',
+        data: {
+            labels: habLabels,
+            datasets: [{
+                label: '% de Acerto',
+                data: habData,
+                backgroundColor: habColors,
+                borderColor: habBorderColors,
+                borderWidth: 1
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        title: function(context) {
+                            const index = context[0].dataIndex;
+                            const item = sortedData[index];
+                            return `${item['HABILIDADE - POSIÇÃO']}: ${item['HABILIDADE - DESCRIÇÃO']}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: { beginAtZero: true, max: 100 }
+            }
+        }
+    });
+
+    // Tabela Detalhada
+    tableBody.innerHTML = '';
+    data.forEach(item => {
+        const row = document.createElement('tr');
+        const faixaClass = item['HABILIDADE - FAIXA'].replace(/\s+/g, '-');
+        row.innerHTML = `
+            <td>${item['HABILIDADE - POSIÇÃO']}</td>
+            <td>${item['HABILIDADE - DESCRIÇÃO']}</td>
+            <td>${item['HABILIDADE - ACERTO %']}%</td>
+            <td><span class="faixa ${faixaClass}">${item['HABILIDADE - FAIXA']}</span></td>
+        `;
+        tableBody.appendChild(row);
+    });
+}
+
+function filterData() {
+    const selectedAno = anoEscolarFilter.value;
+    const selectedComp = compCurricularFilter.value;
+    const selectedFaixa = faixaFilter.value;
+
+    const filteredData = csvData.filter(item => {
+        const anoMatch = selectedAno === 'todos' || item['ANO ESCOLAR'] === selectedAno;
+        const compMatch = selectedComp === 'todos' || item['COMPONENTE CURRICULAR'] === selectedComp;
+        const faixaMatch = selectedFaixa === 'todos' || item['HABILIDADE - FAIXA'] === selectedFaixa;
+        return anoMatch && compMatch && faixaMatch;
+    });
+
+    updateDashboard(filteredData);
+}
+
+// Inicialização
+document.addEventListener('DOMContentLoaded', () => {
+    populateFilters();
+    updateDashboard(csvData);
+
+    anoEscolarFilter.addEventListener('change', filterData);
+    compCurricularFilter.addEventListener('change', filterData);
+    faixaFilter.addEventListener('change', filterData);
+});
+
+</script>
+</body>
+</html>
